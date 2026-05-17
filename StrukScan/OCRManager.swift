@@ -8,65 +8,43 @@ class OCRManager {
     static let shared = OCRManager()
     private init() {}
 
-    // MARK: - Public
-
     func recognize(image: UIImage,
                    completion: @escaping (String, [ReceiptItem], Int) -> Void) {
-
         Task {
             do {
-                let result = try await uploadReceipt(image: image)
-                print("=== OCR RESULT ===")
-                print(result)
-                print("==================")
-
-                let lines = result.components(separatedBy: "\n")
-                    .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-
-                let (storeName, items, total) = parseReceipt(lines: lines)
-
-                await MainActor.run {
-                    completion(storeName, items, total)
-                }
+                let (storeName, items, total) = try await uploadAndParse(image: image)
+                await MainActor.run { completion(storeName, items, total) }
             } catch {
                 print("OCR error: \(error)")
-                await MainActor.run {
-                    completion("", [], 0)
-                }
+                await MainActor.run { completion("", [], 0) }
             }
         }
     }
 
     // MARK: - API Call
 
-    private func uploadReceipt(image: UIImage) async throws -> String {
-        let url = URL(string: "https://surya2212-paddleocrreceipt.hf.space/ocr")!
+    private func uploadAndParse(image: UIImage) async throws
+        -> (storeName: String, items: [ReceiptItem], total: Int) {
 
+        let url = URL(string: "https://surya2212-paddleocrreceipt.hf.space/ocr")!
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.timeoutInterval = 120
 
         let boundary = UUID().uuidString
-        request.setValue(
-            "multipart/form-data; boundary=\(boundary)",
-            forHTTPHeaderField: "Content-Type"
-        )
+        request.setValue("multipart/form-data; boundary=\(boundary)",
+                         forHTTPHeaderField: "Content-Type")
 
         let imageData: Data
         let fileName: String
         let mimeType: String
 
-        if let pngData = image.pngData() {
-            imageData = pngData
-            fileName  = "receipt.png"
-            mimeType  = "image/png"
-        } else if let jpegData = image.jpegData(compressionQuality: 0.8) {
-            imageData = jpegData
-            fileName  = "receipt.jpg"
-            mimeType  = "image/jpeg"
+        if let png = image.pngData() {
+            imageData = png; fileName = "receipt.png"; mimeType = "image/png"
+        } else if let jpg = image.jpegData(compressionQuality: 0.8) {
+            imageData = jpg; fileName = "receipt.jpg"; mimeType = "image/jpeg"
         } else {
-            throw NSError(domain: "ImageEncoding", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "Gagal encode gambar"])
+            throw NSError(domain: "ImageEncoding", code: -1)
         }
 
         var body = Data()
@@ -74,100 +52,141 @@ class OCRManager {
         body.append("Content-Disposition: form-data; name=\"file\"; filename=\"\(fileName)\"\r\n".data(using: .utf8)!)
         body.append("Content-Type: \(mimeType)\r\n\r\n".data(using: .utf8)!)
         body.append(imageData)
-        body.append("\r\n".data(using: .utf8)!)
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
 
         let (data, response) = try await URLSession.shared.upload(for: request, from: body)
-
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode)
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode)
         else { throw URLError(.badServerResponse) }
 
-        // ← DEBUG PRINT
-        let rawString = String(data: data, encoding: .utf8) ?? "nil"
-        print("=== RAW API RESPONSE ===")
-        print(rawString)
-        print("========================")
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let raw  = json["raw"] as? [[String: Any]]
+        else { return ("", [], 0) }
 
-        // Parse response
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            if let text = json["text"] as? String { return text }
-            if let text = json["result"] as? String { return text }
-            if let lines = json["lines"] as? [String] { return lines.joined(separator: "\n") }
-            if let dataArr = json["data"] as? [[String: Any]] {
-                let texts = dataArr.compactMap { $0["text"] as? String }
-                return texts.joined(separator: "\n")
-            }
-        }
+        let texts = raw.compactMap { item -> String? in
+            guard let text  = item["text"]  as? String,
+                  let score = item["score"] as? Double,
+                  score > 0.5
+            else { return nil }
+            return text.trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }
 
-        return String(data: data, encoding: .utf8) ?? ""
+        print("=== OCR TEXTS ===")
+        texts.forEach { print($0) }
+        print("=================")
+
+        return parseReceipt(texts: texts)
     }
 
     // MARK: - Parsing
 
-    private func parseReceipt(lines: [String])
+    private func parseReceipt(texts: [String])
         -> (storeName: String, items: [ReceiptItem], total: Int) {
 
         var storeName = ""
         var items: [ReceiptItem] = []
         var total = 0
 
-        let pricePattern = try? NSRegularExpression(
-            pattern: "(\\d{1,3}(?:[.,]\\d{3})*|\\d{4,})")
+        // Helper: cek apakah string adalah harga (angka dengan koma/titik)
+        let isPrice: (String) -> Bool = { s in
+            let clean = s.replacingOccurrences(of: ",", with: "")
+                         .replacingOccurrences(of: ".", with: "")
+            guard let n = Int(clean) else { return false }
+            return n >= 500
+        }
 
-        let skipKeywords = [
-            "subtotal", "payment", "bayar", "kembalian",
-            "tax", "pajak", "ppn", "service", "charge",
-            "thank", "terima", "kasih", "struk", "nota",
-            "receipt", "debit", "kredit", "cash", "tunai",
-            "void", "closed", "npwp", "www", "http", "@",
-            "telp", "tel:", "no.", "check", "invoice",
-            "jl.", "jalan", "ruko", "plaza", "mall"
-        ]
+        let toInt: (String) -> Int? = { s in
+            let clean = s.replacingOccurrences(of: ",", with: "")
+                         .replacingOccurrences(of: ".", with: "")
+            return Int(clean)
+        }
 
-        for (idx, line) in lines.enumerated() {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            let lower   = trimmed.lowercased()
-            guard !trimmed.isEmpty else { continue }
+        let isSkippable: (String) -> Bool = { s in
+            let lower = s.lowercased()
+            let skipKeywords = [
+                "subtotal", "payment", "debit", "kredit", "tunai",
+                "kembali", "kembalian", "bayar", "thank", "please",
+                "come again", "pembelian", "gratis", "layanan",
+                "konsumen", "www", "http", "jl.", "boulevard",
+                "summarecon", "ruko", "plaza", "mall", "pos",
+                "check", "closed", "ppn", "dpp", "npwp", "hemat"
+            ]
+            return skipKeywords.contains(where: { lower.contains($0) })
+        }
 
-            if storeName.isEmpty && idx < 4 {
-                let hasPrice = pricePattern?.firstMatch(
-                    in: trimmed,
-                    range: NSRange(trimmed.startIndex..., in: trimmed)) != nil
-                let isSkip = skipKeywords.contains(where: { lower.contains($0) })
-                if !hasPrice && !isSkip {
-                    storeName = trimmed
-                    continue
-                }
+        let isQtyOrSymbol: (String) -> Bool = { s in
+            let clean = s.replacingOccurrences(of: ",", with: "")
+                         .replacingOccurrences(of: ".", with: "")
+            if let n = Int(clean), n < 100 { return true }
+            if s == "-" || s == "x" || s == "X" { return true }
+            return false
+        }
+
+        // Ambil nama toko (teks pertama yang bukan angka & bukan skippable)
+        for text in texts.prefix(5) {
+            let lower = text.lowercased()
+            if !isPrice(text) && !isQtyOrSymbol(text) &&
+               !isSkippable(text) && text.count > 2 &&
+               !lower.contains("@") && !lower.contains("/") {
+                storeName = text
+                break
             }
+        }
 
+        // Parsing item: cari pola NAMA → HARGA
+        var i = 0
+        var itemsStarted = false
+
+        while i < texts.count {
+            let text  = texts[i]
+            let lower = text.lowercased()
+
+            // Deteksi total
             if lower.contains("total") && !lower.contains("subtotal") {
-                if let price = extractPrice(from: trimmed, pattern: pricePattern),
-                   price > total {
-                    total = price
+                if i + 1 < texts.count, let t = toInt(texts[i + 1]) {
+                    total = t
                 }
-                continue
+                i += 1; continue
             }
 
-            if skipKeywords.contains(where: { lower.contains($0) }) { continue }
+            // Skip keyword tidak relevan
+            if isSkippable(text) || lower.contains("subtotal") {
+                i += 1; continue
+            }
 
-            if let price = extractPrice(from: trimmed, pattern: pricePattern),
-               price >= 500 {
-                let priceStr = formatNumber(price)
-                var nama = trimmed
-                if let range = trimmed.range(of: priceStr) {
-                    nama = String(trimmed[..<range.lowerBound])
-                        .trimmingCharacters(in: .whitespaces)
+            // Skip qty/simbol
+            if isQtyOrSymbol(text) {
+                i += 1; continue
+            }
+
+            // Kalau ini harga murni, skip (sudah dipakai di iterasi sebelumnya)
+            if isPrice(text) {
+                i += 1; continue
+            }
+
+            // Ini kemungkinan nama barang
+            if text.count >= 3 && !lower.contains("@") {
+                // Cek token berikutnya apakah harga
+                var j = i + 1
+                // Lewati qty/simbol di antara nama dan harga
+                while j < texts.count && isQtyOrSymbol(texts[j]) {
+                    j += 1
                 }
-                nama = nama.replacingOccurrences(
-                    of: "^[\\d\\s\\-\\.\\,\\*\\/]+",
-                    with: "", options: .regularExpression)
-                    .trimmingCharacters(in: .whitespaces)
 
-                if !nama.isEmpty && nama.count >= 2 {
-                    items.append(ReceiptItem(nama: nama, harga: price))
+                if j < texts.count && isPrice(texts[j]) {
+                    let harga = toInt(texts[j]) ?? 0
+                    // Pastikan ini bukan header/footer
+                    if !isSkippable(text) && harga >= 500 {
+                        itemsStarted = true
+                        items.append(ReceiptItem(nama: text, harga: harga))
+                        print("ITEM: \(text) = \(harga)")
+                        i = j + 1
+                        continue
+                    }
                 }
             }
+
+            i += 1
         }
 
         if total == 0 && !items.isEmpty {
@@ -175,25 +194,5 @@ class OCRManager {
         }
 
         return (storeName, items, total)
-    }
-
-    private func extractPrice(from text: String,
-                               pattern: NSRegularExpression?) -> Int? {
-        guard let pattern else { return nil }
-        let matches = pattern.matches(
-            in: text, range: NSRange(text.startIndex..., in: text))
-        return matches.compactMap { m -> Int? in
-            guard let r = Range(m.range, in: text) else { return nil }
-            return Int(text[r]
-                .replacingOccurrences(of: ".", with: "")
-                .replacingOccurrences(of: ",", with: ""))
-        }.max()
-    }
-
-    private func formatNumber(_ n: Int) -> String {
-        let f = NumberFormatter()
-        f.groupingSeparator = "."
-        f.numberStyle = .decimal
-        return f.string(from: NSNumber(value: n)) ?? "\(n)"
     }
 }
