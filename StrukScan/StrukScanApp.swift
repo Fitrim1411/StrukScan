@@ -1,9 +1,10 @@
+// StrukScanApp.swift
+// StrukScan
 //
-//  StrukScanApp.swift
-//  StrukScan
-//
-//  Created by Fitri Maharani on 17/05/26.
-//
+// File ini adalah entry point utama aplikasi StrukScan.
+// Ditandai dengan @main sebagai titik awal eksekusi app.
+// Membuat WindowGroup yang menampilkan ContentView sebagai
+// tampilan pertama saat aplikasi dibuka.
 
 import SwiftUI
 

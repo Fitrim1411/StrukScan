@@ -6,13 +6,31 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		448D96AC2FB9366300A0AC16 /* onnxruntime in Frameworks */ = {isa = PBXBuildFile; productRef = 448D96AB2FB9366300A0AC16 /* onnxruntime */; };
+		448D96AE2FB9366300A0AC16 /* onnxruntime_extensions in Frameworks */ = {isa = PBXBuildFile; productRef = 448D96AD2FB9366300A0AC16 /* onnxruntime_extensions */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		448D96772FB9315400A0AC16 /* StrukScan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = StrukScan.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		448D96C52FB9AC4F00A0AC16 /* Exceptions for "StrukScan" folder in "StrukScan" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 448D96762FB9315400A0AC16 /* StrukScan */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		448D96792FB9315400A0AC16 /* StrukScan */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				448D96C52FB9AC4F00A0AC16 /* Exceptions for "StrukScan" folder in "StrukScan" target */,
+			);
 			path = StrukScan;
 			sourceTree = "<group>";
 		};
@@ -23,6 +41,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				448D96AE2FB9366300A0AC16 /* onnxruntime_extensions in Frameworks */,
+				448D96AC2FB9366300A0AC16 /* onnxruntime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +85,8 @@
 			);
 			name = StrukScan;
 			packageProductDependencies = (
+				448D96AB2FB9366300A0AC16 /* onnxruntime */,
+				448D96AD2FB9366300A0AC16 /* onnxruntime_extensions */,
 			);
 			productName = StrukScan;
 			productReference = 448D96772FB9315400A0AC16 /* StrukScan.app */;
@@ -94,6 +116,9 @@
 			);
 			mainGroup = 448D966E2FB9315400A0AC16;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				448D96AA2FB9366300A0AC16 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 448D96782FB9315400A0AC16 /* Products */;
 			projectDirPath = "";
@@ -256,11 +281,14 @@
 				DEVELOPMENT_TEAM = J68D832FLV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -288,11 +316,14 @@
 				DEVELOPMENT_TEAM = J68D832FLV;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 18.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -332,6 +363,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		448D96AA2FB9366300A0AC16 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/microsoft/onnxruntime-swift-package-manager";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.24.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		448D96AB2FB9366300A0AC16 /* onnxruntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 448D96AA2FB9366300A0AC16 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */;
+			productName = onnxruntime;
+		};
+		448D96AD2FB9366300A0AC16 /* onnxruntime_extensions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 448D96AA2FB9366300A0AC16 /* XCRemoteSwiftPackageReference "onnxruntime-swift-package-manager" */;
+			productName = onnxruntime_extensions;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 448D966F2FB9315400A0AC16 /* Project object */;
 }

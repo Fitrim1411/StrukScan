@@ -1,0 +1,6 @@
+fitrimaharani@192 challenge1_vision % /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string 'Untuk scan struk belanja'" \
+"/Users/fitrimaharani/APPLE INSTITUTE/challenge1_vision/StrukScan/StrukScan/Info.plist"
+
+/usr/libexec/PlistBuddy -c "Add :NSPhotoLibraryUsageDescription string 'Untuk memilih foto struk'" \
+"/Users/fitrimaharani/APPLE INSTITUTE/challenge1_vision/StrukScan/StrukScan/Info.plist"
+File Doesn't Exist, Will Create: /Users/fitrimaharani/APPLE INSTITUTE/challenge1_vision/StrukScan/StrukScan/Info.plist

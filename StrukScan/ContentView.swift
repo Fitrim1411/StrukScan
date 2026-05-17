@@ -1,24 +1,32 @@
+// ContentView.swift
+// StrukScan
 //
-//  ContentView.swift
-//  StrukScan
-//
-//  Created by Fitri Maharani on 17/05/26.
-//
+// File ini berisi ContentView, root view dari aplikasi yang mengatur
+// navigasi utama menggunakan TabView. Terdiri dari dua tab yaitu
+// ScanView untuk scan struk baru dan HistoryView untuk melihat
+// riwayat. Juga bertanggung jawab meng-inject ReceiptStore ke
+// seluruh child view melalui environmentObject.
 
 import SwiftUI
 
 struct ContentView: View {
-    var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+    @StateObject private var store = ReceiptStore()
 
-#Preview {
-    ContentView()
+    var body: some View {
+        TabView {
+            ScanView()
+                .environmentObject(store)
+                .tabItem {
+                    Label("Scan", systemImage: "camera.fill")
+                }
+
+            HistoryView()
+                .environmentObject(store)
+                .tabItem {
+                    Label("History",
+                          systemImage: "list.bullet.rectangle.portrait.fill")
+                }
+        }
+        .tint(.green)
+    }
 }
